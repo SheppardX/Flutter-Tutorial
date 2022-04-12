@@ -26,12 +26,15 @@ class UnitConverterApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Unit Converter',
       // TODO: Instead of pointing to exactly 1 Category widget,
       // our home should now point to an instance of the CategoryRoute widget.
-      home: CategoryRoute(),
+      home: const CategoryRoute(),
+      theme: ThemeData(
+        primaryColor: Colors.grey[500],
+      ),
     );
   }
 }

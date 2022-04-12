@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 import 'package:flutter/material.dart';
+import 'package:hello_rectangle/backdrop.dart';
+import 'package:hello_rectangle/category_tile.dart';
+import 'package:hello_rectangle/unit_converter.dart';
 
 import 'category.dart';
 import 'unit.dart';
@@ -24,6 +27,8 @@ class CategoryRoute extends StatefulWidget {
 }
 
 class _CategoryRouteState extends State<CategoryRoute> {
+  Category? _defaultCategory;
+  Category? _currentCategory;
   List<Category> _categories = <Category>[];
   static const _categoryNames = <String>[
     'Length',
@@ -76,13 +81,23 @@ class _CategoryRouteState extends State<CategoryRoute> {
     super.initState();
     setState(() {
       for (var i = 0; i < _categoryNames.length; i++) {
-        _categories.add(Category(
+        var category = Category(
           name: _categoryNames[i],
           color: _baseColors[i],
-          icon: Icons.cake,
+          iconLocation: Icons.cake,
           units: _retrieveUnitList(_categoryNames[i]),
-        ));
+        );
+        if (i == 0) {
+          _defaultCategory = category;
+        }
+        _categories.add(category);
       }
+    });
+  }
+
+  void _onCategoryTap(Category category) {
+    setState(() {
+      _currentCategory = category;
     });
   }
 
@@ -91,7 +106,12 @@ class _CategoryRouteState extends State<CategoryRoute> {
   /// For portrait, we use a [ListView].
   Widget _buildCategoryWidgets() {
     return ListView.builder(
-      itemBuilder: (BuildContext context, int index) => _categories[index],
+      itemBuilder: (BuildContext context, int index) {
+        return CategoryTile(
+          category: _categories[index],
+          onTap: _onCategoryTap,
+        );
+      },
       itemCount: _categories.length,
     );
   }
@@ -114,21 +134,14 @@ class _CategoryRouteState extends State<CategoryRoute> {
       child: _buildCategoryWidgets(),
     );
 
-    final appBar = AppBar(
-      elevation: 0.0,
-      title: const Text(
-        'Unit Converter',
-        style: TextStyle(
-          fontSize: 30.0,
-        ),
-      ),
-      centerTitle: true,
-      backgroundColor: _backgroundColor,
-    );
-
-    return Scaffold(
-      appBar: appBar,
-      body: listView,
+    return Backdrop(
+      currentCategory: _currentCategory ?? _defaultCategory!,
+      frontPanel: _currentCategory == null
+          ? UnitConverter(category: _defaultCategory!)
+          : UnitConverter(category: _currentCategory!),
+      backPanel: listView,
+      frontTitle: const Text('Unit Converter'),
+      backTitle: const Text('Select a Category'),
     );
   }
 }
