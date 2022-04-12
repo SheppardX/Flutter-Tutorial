@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'category.dart';
 import 'unit.dart';
 
-final _backgroundColor = Colors.blue[100];
+final _backgroundColor = Colors.blueAccent;
 
 /// Category Route (screen).
 ///
@@ -110,7 +110,6 @@ class _CategoryRouteState extends State<CategoryRoute> {
   @override
   Widget build(BuildContext context) {
     final listView = Container(
-      color: _backgroundColor,
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
       child: _buildCategoryWidgets(),
     );
@@ -120,7 +119,6 @@ class _CategoryRouteState extends State<CategoryRoute> {
       title: const Text(
         'Unit Converter',
         style: TextStyle(
-          color: Colors.black,
           fontSize: 30.0,
         ),
       ),

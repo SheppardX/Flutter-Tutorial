@@ -4,8 +4,8 @@
 
 /// Information about a [Unit].
 class Unit {
-  final String? name;
-  final double? conversion;
+  final String name;
+  final double conversion;
 
   /// A [Unit] stores its name and conversion factor.
   ///
