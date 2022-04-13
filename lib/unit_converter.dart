@@ -4,6 +4,7 @@
 
 import 'package:collection/collection.dart' show IterableExtension;
 import 'package:flutter/material.dart';
+import 'package:hello_rectangle/api.dart';
 
 import 'category.dart';
 import 'unit.dart';
@@ -33,6 +34,7 @@ class _UnitConverterState extends State<UnitConverter> {
   String _convertedValue = '';
   List<DropdownMenuItem>? _unitMenuItems;
   bool _showValidationError = false;
+  bool _showErrorUI = false;
 
   @override
   void initState() {
@@ -41,10 +43,17 @@ class _UnitConverterState extends State<UnitConverter> {
     _setDefaults();
   }
 
-  // TODO: _createDropdownMenuItems() and _setDefaults() should also be called
-  // each time the user switches [Categories].
+  @override
+  void didUpdateWidget(UnitConverter old) {
+    super.didUpdateWidget(old);
+    // We update our [DropdownMenuItem] units when we switch [Categories].
+    if (old.category != widget.category) {
+      _createDropdownMenuItems();
+      _setDefaults();
+      _showErrorUI = false;
+    }
+  }
 
-  /// Creates fresh list of [DropdownMenuItem] widgets, given a list of [Unit]s.
   void _createDropdownMenuItems() {
     var newItems = <DropdownMenuItem>[];
     for (var unit in widget.category.units) {
@@ -61,13 +70,14 @@ class _UnitConverterState extends State<UnitConverter> {
     });
   }
 
-  /// Sets the default values for the 'from' and 'to' [Dropdown]s, and the
-  /// updated output value if a user had previously entered an input.
   void _setDefaults() {
     setState(() {
       _fromValue = widget.category.units[0];
       _toValue = widget.category.units[1];
     });
+    if (_inputValue != null) {
+      _updateConversion();
+    }
   }
 
   /// Clean up conversion; trim trailing zeros, e.g. 5.500 -> 5.5, 10.0 -> 10
@@ -86,11 +96,31 @@ class _UnitConverterState extends State<UnitConverter> {
     return outputNum;
   }
 
-  void _updateConversion() {
-    setState(() {
-      _convertedValue = _format(
-          _inputValue! * (_toValue!.conversion / _fromValue!.conversion));
-    });
+  void _updateConversion() async {
+    // Our API has a handy convert function, so we can use that for
+    // the Currency [Category]
+    if (widget.category.name == apiCategory['name']) {
+      final api = Api();
+      final conversion = await api.convert(apiCategory['route']!,
+          _inputValue.toString(), _fromValue!.name, _toValue!.name);
+      // TODO: Check whether to show an error UI
+      if (conversion == null) {
+        setState(() {
+          _showErrorUI = true;
+        });
+      } else {
+        setState(() {
+          _showErrorUI = false;
+          _convertedValue = _format(conversion);
+        });
+      }
+    } else {
+      // For the static units, we do the conversion ourselves
+      setState(() {
+        _convertedValue = _format(
+            _inputValue! * (_toValue!.conversion / _fromValue!.conversion));
+      });
+    }
   }
 
   void _updateInputValue(String input) {
@@ -172,8 +202,7 @@ class _UnitConverterState extends State<UnitConverter> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildConvertForm(BuildContext context, Orientation orientation) {
     final input = Padding(
       padding: _padding,
       child: Column(
@@ -233,18 +262,57 @@ class _UnitConverterState extends State<UnitConverter> {
       ),
     );
 
-    final converter = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        input,
-        arrows,
-        output,
-      ],
-    );
+    final children = [
+      input,
+      arrows,
+      output,
+    ];
+
+    if (orientation == Orientation.portrait) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      );
+    } else {
+      return Padding(
+        padding: const EdgeInsets.only(right: 15),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Expanded(child: input),
+            const Expanded(
+              child: Icon(
+                Icons.compare_arrows,
+                size: 40.0,
+              ),
+            ),
+            Expanded(child: output),
+          ],
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_showErrorUI) {
+      return Container(
+        color: Colors.red,
+        child: Center(
+          child: Text('sOmEtHiNg WeNt WrOnG!1!'),
+        ),
+      );
+    }
+
+    final converter =
+        _buildConvertForm(context, MediaQuery.of(context).orientation);
 
     return Padding(
       padding: _padding,
-      child: converter,
+      child: SingleChildScrollView(
+        child: converter,
+      ),
     );
   }
 }

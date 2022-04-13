@@ -11,8 +11,8 @@ class Unit {
   ///
   /// An example would be 'Meter' and '1.0'.
   const Unit({
-    required String this.name,
-    required double this.conversion,
+    required this.name,
+    required this.conversion,
   });
 
   /// Creates a [Unit] from a JSON object.

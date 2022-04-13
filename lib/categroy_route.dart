@@ -2,23 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:hello_rectangle/api.dart';
 import 'package:hello_rectangle/backdrop.dart';
+import 'package:hello_rectangle/category.dart';
 import 'package:hello_rectangle/category_tile.dart';
+import 'package:hello_rectangle/unit.dart';
 import 'package:hello_rectangle/unit_converter.dart';
 
-import 'category.dart';
-import 'unit.dart';
-
-final _backgroundColor = Colors.blueAccent;
-
-/// Category Route (screen).
-///
-/// This is the 'home' screen of the Unit Converter. It shows a header and
-/// a list of [Categories].
-///
-/// While it is named CategoryRoute, a more apt name would be CategoryScreen,
-/// because it is responsible for the UI at the route's destination.
 class CategoryRoute extends StatefulWidget {
   const CategoryRoute({Key? key}) : super(key: key);
 
@@ -29,17 +22,7 @@ class CategoryRoute extends StatefulWidget {
 class _CategoryRouteState extends State<CategoryRoute> {
   Category? _defaultCategory;
   Category? _currentCategory;
-  List<Category> _categories = <Category>[];
-  static const _categoryNames = <String>[
-    'Length',
-    'Area',
-    'Volume',
-    'Mass',
-    'Time',
-    'Digital Storage',
-    'Energy',
-    'Currency',
-  ];
+  final List<Category> _categories = <Category>[];
   static const _baseColors = <ColorSwatch>[
     ColorSwatch(0xFF6AB7A8, {
       'highlight': Color(0xFF6AB7A8),
@@ -76,24 +59,16 @@ class _CategoryRouteState extends State<CategoryRoute> {
     }),
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    setState(() {
-      for (var i = 0; i < _categoryNames.length; i++) {
-        var category = Category(
-          name: _categoryNames[i],
-          color: _baseColors[i],
-          iconLocation: Icons.cake,
-          units: _retrieveUnitList(_categoryNames[i]),
-        );
-        if (i == 0) {
-          _defaultCategory = category;
-        }
-        _categories.add(category);
-      }
-    });
-  }
+  static const _icons = <String>[
+    'assets/icons/length.png',
+    'assets/icons/area.png',
+    'assets/icons/volume.png',
+    'assets/icons/mass.png',
+    'assets/icons/time.png',
+    'assets/icons/digital_storage.png',
+    'assets/icons/power.png',
+    'assets/icons/currency.png',
+  ];
 
   void _onCategoryTap(Category category) {
     setState(() {
@@ -101,37 +76,127 @@ class _CategoryRouteState extends State<CategoryRoute> {
     });
   }
 
-  /// Makes the correct number of rows for the list view.
-  ///
-  /// For portrait, we use a [ListView].
-  Widget _buildCategoryWidgets() {
-    return ListView.builder(
-      itemBuilder: (BuildContext context, int index) {
-        return CategoryTile(
-          category: _categories[index],
-          onTap: _onCategoryTap,
-        );
-      },
-      itemCount: _categories.length,
+  CategoryTile _getCategoryTile(Category category) {
+    return CategoryTile(
+      category: category,
+      onTap: category.name == apiCategory['name'] && category.units.isEmpty
+          ? null
+          : _onCategoryTap,
     );
   }
 
-  /// Returns a list of mock [Unit]s.
-  List<Unit> _retrieveUnitList(String categoryName) {
-    return List.generate(10, (int i) {
-      i += 1;
-      return Unit(
-        name: '$categoryName Unit $i',
-        conversion: i.toDouble(),
+  Widget _buildCategoryWidgets(Orientation orientation) {
+    if (orientation == Orientation.portrait) {
+      return ListView.builder(
+        itemBuilder: (BuildContext context, int index) {
+          var _category = _categories[index];
+          return _getCategoryTile(_category);
+        },
+        itemCount: _categories.length,
       );
+    } else {
+      return GridView.count(
+        crossAxisCount: 2,
+        childAspectRatio: 5,
+        children: _categories.map((Category category) {
+          return _getCategoryTile(category);
+          ;
+        }).toList(),
+      );
+    }
+  }
+
+  @override
+  Future<void> didChangeDependencies() async {
+    super.didChangeDependencies();
+    // We have static unit conversions located in our
+    // assets/data/regular_units.json
+    if (_categories.isEmpty) {
+      await _retrieveLocalCategories();
+      await _retrieveApiCategory();
+    }
+  }
+
+  Future<void> _retrieveApiCategory() async {
+    // Add a placeholder while we fetch the Currency category using the API
+    setState(() {
+      _categories.add(Category(
+        name: apiCategory['name']!,
+        units: [],
+        color: _baseColors.last,
+        iconLocation: _icons.last,
+      ));
     });
+    final api = Api();
+    final jsonUnits = await api.getUnits(apiCategory['route']);
+    // If the API errors out or we have no internet connection, this category
+    // remains in placeholder mode (disabled)
+    if (jsonUnits != null) {
+      final units = <Unit>[];
+      for (var unit in jsonUnits) {
+        units.add(Unit.fromJson(unit));
+      }
+      setState(() {
+        _categories.removeLast();
+        _categories.add(Category(
+          name: apiCategory['name']!,
+          units: units,
+          color: _baseColors.last,
+          iconLocation: _icons.last,
+        ));
+      });
+    }
+  }
+
+  /// Retrieves a list of [Categories] and their [Unit]s
+  Future<void> _retrieveLocalCategories() async {
+    // Consider omitting the types for local variables. For more details on Effective
+    // Dart Usage, see https://www.dartlang.org/guides/language/effective-dart/usage
+    final json = DefaultAssetBundle.of(context)
+        .loadString('assets/data/regular_units.json');
+    final data = const JsonDecoder().convert(await json);
+    if (data is! Map) {
+      throw ('Data retrieved from API is not a Map');
+    }
+    _parseCategories(data);
+  }
+
+  void _parseCategories(Map data) {
+    var categoryIndex = 0;
+    for (var key in data.keys) {
+      final List<Unit> units =
+          data[key].map<Unit>((dynamic data) => Unit.fromJson(data)).toList();
+
+      var category = Category(
+          name: key,
+          color: _baseColors[categoryIndex],
+          units: units,
+          iconLocation: _icons[categoryIndex]);
+      setState(() {
+        if (categoryIndex == 0) {
+          _defaultCategory = category;
+        }
+        _categories.add(category);
+      });
+      categoryIndex += 1;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_categories.isEmpty) {
+      return const Center(
+        child: SizedBox(
+          height: 180.0,
+          width: 180.0,
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    assert(debugCheckHasMediaQuery(context));
     final listView = Container(
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
-      child: _buildCategoryWidgets(),
+      child: _buildCategoryWidgets(MediaQuery.of(context).orientation),
     );
 
     return Backdrop(

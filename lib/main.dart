@@ -9,12 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:hello_rectangle/categroy_route.dart';
 // More details at http://dart-lang.github.io/linter/lints/avoid_relative_lib_imports.html
 
-// TODO: Pass this information into your custom [Category] widget
-const _categoryName = 'Cake';
-const _categoryIcon = Icons.cake;
-const _categoryColor = Colors.green;
-
-/// The function that is called when main.dart is run.
 void main() {
   runApp(const UnitConverterApp());
 }
@@ -29,11 +23,14 @@ class UnitConverterApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Unit Converter',
-      // TODO: Instead of pointing to exactly 1 Category widget,
-      // our home should now point to an instance of the CategoryRoute widget.
       home: const CategoryRoute(),
       theme: ThemeData(
+        fontFamily: 'Raleway',
         primaryColor: Colors.grey[500],
+        textTheme: Theme.of(context).textTheme.apply(
+              bodyColor: Colors.black,
+              displayColor: Colors.grey[600],
+            ),
       ),
     );
   }
